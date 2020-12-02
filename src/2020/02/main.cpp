@@ -40,6 +40,58 @@
 #include <string>
 #include <vector>
 
+typedef struct Entry {
+    unsigned short pos1;
+    unsigned short pos2;
+    char letter;
+    std::string password;
+} Entry;
+
+bool tryParseEntry(const std::string& string, Entry& entry)
+{
+    static const auto regex = std::regex("([0-9]*)-([0-9]*) ([a-zA-Z]): (.*)");
+    
+    std::smatch matches;
+    std::regex_match(string, matches, regex);
+    if (matches.size() != 5) {
+        return false;
+    }
+
+    entry.pos1 = std::stoi(matches[1]);
+    entry.pos2 = std::stoi(matches[2]);
+    entry.letter = matches[3].str()[0];
+    entry.password = matches[4].str();
+
+    return true;
+}
+
+bool validatePasswordPart1(const Entry& entry)
+{
+    auto letterCount = 0;
+    for (auto idx = 0; idx < entry.password.length(); ++idx) {
+        if (entry.password[idx] == entry.letter) {
+            letterCount++;
+        }
+    }
+
+    return (letterCount >= entry.pos1 && letterCount <= entry.pos2);
+}
+
+bool validatePasswordPart2(const Entry& entry)
+{
+    // Since the validity is only valid if one of the positions matches the letter,
+    // we can just flip the valid bool on each match as an XOR.
+    bool valid = false;
+    if (entry.password[entry.pos1 - 1] == entry.letter) {
+        valid = !valid;
+    }
+    if (entry.password[entry.pos2 - 1] == entry.letter) {
+        valid = !valid;
+    }
+
+    return valid;
+}
+
 int main(int argc, char** argv)
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -47,39 +99,20 @@ int main(int argc, char** argv)
     // Read file
     std::ifstream inputFile("input.txt");
     std::string line;
-    std::vector<std::string> inputs;
+    std::vector<Entry> entries;
     while (std::getline(inputFile, line)) {
-        inputs.push_back(line);
+        Entry entry;
+        if (tryParseEntry(line, entry)) {
+            entries.push_back(entry);
+        }
     }
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
     // Part 1
     auto p1Answer = 0;
-    const auto regex = std::regex("([0-9]*)-([0-9]*) ([a-zA-Z]): (.*)");
-    for (auto input : inputs) {
-        std::smatch matches;
-        std::regex_match(input, matches, regex);
-        
-        // Don't barf
-        if (matches.size() != 5) {
-            std::cout << "[SKIP | Bad Input] " << input << std::endl;
-            continue;
-        }
-
-        const auto min = std::stoi(matches[1]);
-        const auto max = std::stoi(matches[2]);
-        const auto letter = matches[3].str()[0];
-        const auto password = matches[4].str();
-
-        auto letterCount = 0;
-        for (auto idx = 0; idx < password.length(); ++idx) {
-            if (password[idx] == letter) {
-                letterCount++;
-            }
-        }
-
-        if (letterCount >= min && letterCount <= max) {
+    for (auto entry : entries) {
+        if (validatePasswordPart1(entry)) {
             p1Answer++;
         }
     }
@@ -88,33 +121,8 @@ int main(int argc, char** argv)
 
     // Part 2
     auto p2Answer = 0;
-    for (auto input : inputs) {
-        std::smatch matches;
-        std::regex_match(input, matches, regex);
-
-        // Don't barf
-        if (matches.size() != 5) {
-            std::cout << "[SKIP | Bad Input] " << input << std::endl;
-            continue;
-        }
-
-        // values are not one-indexed, so we offset them to be zero-indexed.
-        const auto pos1 = std::stoi(matches[1]) - 1;
-        const auto pos2 = std::stoi(matches[2]) - 1;
-        const auto letter = matches[3].str()[0];
-        const auto password = matches[4].str();
-
-        // Since the validity is only valid if one of the positions matches the letter,
-        // we can just flip the valid bool on each match as an XOR.
-        bool valid = false;
-        if (password[pos1] == letter) {
-            valid = !valid;
-        }
-        if (password[pos2] == letter) {
-            valid = !valid;
-        }
-
-        if (valid) {
+    for (auto entry : entries) {
+        if (validatePasswordPart2(entry)) {
             p2Answer++;
         }
     }
