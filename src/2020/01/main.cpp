@@ -6,6 +6,7 @@
 
 int main(int argc, char** argv)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     const auto goal = 2020;
 
     // Read and parse each number
@@ -13,7 +14,13 @@ int main(int argc, char** argv)
     std::string line;
     std::vector<int> numbers;
     while (std::getline(inputFile, line)) {
-        numbers.push_back(std::stoi(line));
+        // Drop the number from the vector entirely
+        // if it's over the goal number.
+        // (turns out this doesn't ever happen with provided input)
+        auto value = std::stoi(line);
+        if (value < goal) {
+            numbers.push_back(value);
+        }
     }
 
     // Part 1
@@ -25,8 +32,9 @@ int main(int argc, char** argv)
             continue;
         }
 
+        auto remaining = goal - *firstIter;
         for (auto secondIter = firstIter + 1; secondIter != numbers.cend(); ++secondIter) {
-            if (*firstIter + *secondIter == goal) {
+            if (*secondIter == remaining) {
                 p1Answer = *firstIter * *secondIter;
                 break;
             }
@@ -42,14 +50,17 @@ int main(int argc, char** argv)
             continue;
         }
 
+        auto remaining = goal - *firstIter;
         for (auto secondIter = firstIter + 1; secondIter != numbers.cend(); ++secondIter) {
             // skip, not valid
-            if (*firstIter + *secondIter >= goal) {
+            if (*secondIter >= remaining) {
                 continue;
             }
 
+            // Terrible name, but whatever, gotta go fast.
+            auto remaining2 = remaining - *secondIter;
             for (auto thirdIter = secondIter + 1; thirdIter != numbers.cend(); ++thirdIter) {
-                if (*firstIter + *secondIter + *thirdIter == goal) {
+                if (*thirdIter == remaining2) {
                     p2Answer = *firstIter * *secondIter * *thirdIter;
                     break;
                 }
@@ -59,12 +70,16 @@ int main(int argc, char** argv)
 
     auto t3 = std::chrono::high_resolution_clock::now();
 
+    auto fileLoad = std::chrono::duration_cast<std::chrono::microseconds>(t1 - start).count();
     auto p1duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
     auto p2duration = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+    auto totalTime = std::chrono::duration_cast<std::chrono::microseconds>(t3 - start).count();
 
     std::cout
+        << "File Load: " << fileLoad << "us" << std::endl
         << "Part1: " << p1Answer << " (" << p1duration << "us)" << std::endl
-        << "Part2: " << p2Answer << " (" << p2duration << "us)" << std::endl;
+        << "Part2: " << p2Answer << " (" << p2duration << "us)" << std::endl
+        << "Total Time: " << totalTime << "us" << std::endl;
 
     return 0;
 }
