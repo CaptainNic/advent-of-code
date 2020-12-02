@@ -20,6 +20,11 @@ int main(int argc, char** argv)
     auto t1 = std::chrono::high_resolution_clock::now();
     long p1Answer = 0;
     for (auto firstIter = numbers.cbegin(); firstIter != numbers.cend(); ++firstIter) {
+        // skip, not valid
+        if (*firstIter >= goal) {
+            continue;
+        }
+
         for (auto secondIter = firstIter + 1; secondIter != numbers.cend(); ++secondIter) {
             if (*firstIter + *secondIter == goal) {
                 p1Answer = *firstIter * *secondIter;
@@ -32,7 +37,17 @@ int main(int argc, char** argv)
     auto t2 = std::chrono::high_resolution_clock::now();
     long p2Answer = 0;
     for (auto firstIter = numbers.cbegin(); firstIter != numbers.cend(); ++firstIter) {
+        // skip, not valid
+        if (*firstIter >= goal) {
+            continue;
+        }
+
         for (auto secondIter = firstIter + 1; secondIter != numbers.cend(); ++secondIter) {
+            // skip, not valid
+            if (*firstIter + *secondIter >= goal) {
+                continue;
+            }
+
             for (auto thirdIter = secondIter + 1; thirdIter != numbers.cend(); ++thirdIter) {
                 if (*firstIter + *secondIter + *thirdIter == goal) {
                     p2Answer = *firstIter * *secondIter * *thirdIter;
