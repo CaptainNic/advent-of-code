@@ -40,6 +40,8 @@
 #include <string>
 #include <vector>
 
+#define USE_REGEX 0
+
 typedef struct Entry {
     unsigned short pos1;
     unsigned short pos2;
@@ -47,10 +49,13 @@ typedef struct Entry {
     std::string password;
 } Entry;
 
-bool tryParseEntry(const std::string& string, Entry& entry)
+bool tryParseEntry(const std::string& input, Entry& entry)
 {
+    // Regex method takes ~3000us total time once input file is cached by OS.
+    // Manual parsing method is ~500us.
+#if USE_REGEX
     static const auto regex = std::regex("([0-9]*)-([0-9]*) ([a-zA-Z]): (.*)");
-    
+
     std::smatch matches;
     std::regex_match(string, matches, regex);
     if (matches.size() != 5) {
@@ -63,6 +68,24 @@ bool tryParseEntry(const std::string& string, Entry& entry)
     entry.password = matches[4].str();
 
     return true;
+#else
+    // get first number
+    entry.pos1 = std::stoi(input);
+
+    // get second number
+    auto pos2Loc = input.find('-') + 1;
+    entry.pos2 = std::stoi(input.substr(pos2Loc));
+
+    // get letter
+    auto letterPos = input.find(' ') + 1;
+    entry.letter = input[letterPos];
+
+    // password starts 3 characters after letter
+    //  '1-3 a: asdf'
+    entry.password = input.substr(letterPos + 3);
+
+    return true;
+#endif
 }
 
 bool validatePasswordPart1(const Entry& entry)
