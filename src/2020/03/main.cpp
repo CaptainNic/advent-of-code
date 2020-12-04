@@ -86,7 +86,6 @@
  * each of the listed slopes?
  **/
 
-#include <bitset>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -142,28 +141,29 @@ int main(int argc, char** argv)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Create map object
+    // Read file
     std::ifstream inputFile("input.txt");
     std::string line;
     auto data = std::make_unique<std::vector<std::string>>();
     while (std::getline(inputFile, line)) {
-        data->push_back(line);
+        data->push_back(std::move(line));
     }
-    auto map = new Map(std::move(data));
+    inputFile.close();
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
     // Part 1
-    auto p1Answer = map->countTrees(3, 1);
+    Map map(std::move(data));
+    auto p1Answer = map.countTrees(3, 1);
 
     auto t2 = std::chrono::high_resolution_clock::now();
 
     // Part 2
-    auto p2Answer = map->countTrees(1, 1)
+    auto p2Answer = map.countTrees(1, 1)
         * p1Answer
-        * map->countTrees(5, 1)
-        * map->countTrees(7, 1)
-        * map->countTrees(1, 2);
+        * map.countTrees(5, 1)
+        * map.countTrees(7, 1)
+        * map.countTrees(1, 2);
 
 
     auto t3 = std::chrono::high_resolution_clock::now();
