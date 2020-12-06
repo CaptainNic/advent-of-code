@@ -122,15 +122,16 @@ class Passport
 {
 public:
     enum Field {
-        BIRTH_YEAR = 1 << 0,
-        ISSUE_YEAR = 1 << 1,
-        EXPIRY_YEAR = 1 << 2,
-        PASSPORT_ID = 1 << 3,
-        COUNTRY_ID = 1 << 4,
-        HEIGHT = 1 << 5,
-        HAIR_COLOR = 1 << 6,
-        EYE_COLOR = 1 << 7,
-        ALL_FIELDS = (1 << 8) - 1
+        BIRTH_YEAR = 0,
+        ISSUE_YEAR,
+        EXPIRY_YEAR,
+        PASSPORT_ID,
+        COUNTRY_ID,
+        HEIGHT,
+        HAIR_COLOR,
+        EYE_COLOR,
+
+        NUM_FIELDS
     };
 
 private:
@@ -185,11 +186,11 @@ private:
         }
 
         auto unitStart = input.length() - 2;
-        auto number = input.substr(0, unitStart);
-        if (number.find_first_not_of("0123456789") != std::string::npos) {
+        if (input.find_first_not_of("0123456789") != unitStart) {
             return false;
         }
-        
+
+        auto number = input.substr(0, unitStart);
         auto unit = input.substr(unitStart);
         if (unit.compare("cm") == 0 && validateRange<150, 193>(number)) {
             return true;
@@ -205,11 +206,8 @@ private:
     static bool validateNoop(const std::string& input) { return true; }
 
 public:
-    // Passport Factory
-    static std::unique_ptr<Passport> CreateFromInput(std::string input, bool validateFields)
+    static std::unique_ptr<Passport> CreateFromInput(std::string input)
     {
-        //std::cout << input << std::endl;
-
         auto passport = std::unique_ptr<Passport>(new Passport());
         auto pos = 0;
         while (pos <= input.length()) {
@@ -217,19 +215,16 @@ public:
             auto key = input.substr(pos, 3);
             auto fieldIter = m_keyFieldMap.find(key);
             if (fieldIter != m_keyFieldMap.end()) {
-                auto valid = false;
-                if (validateFields) {
-                    auto valueStart = pos + 4;
-                    auto value = input.substr(valueStart, nextPos - valueStart);
-                    auto validatorIter = m_keyValidatorMap.find(key);
-                    if (validatorIter != m_keyValidatorMap.end()) {
-                        valid = validatorIter->second(value);
-                        //std::cout << (valid ? "[ VALID ]" : "[INVALID]") << key << ": " << value << std::endl;
-                    }
-                }
+                // Mark field exists
+                passport->m_isFieldSet.set(fieldIter->second);
 
-                if (valid || !validateFields) {
-                    passport->m_isFieldSet |= static_cast<uint8_t>(fieldIter->second);
+                // Mark field valid if it passes validity check
+                auto valueStart = pos + 4;
+                auto valueLength = nextPos - valueStart;
+                auto value = input.substr(valueStart, valueLength);
+                auto validatorIter = m_keyValidatorMap.find(key);
+                if (validatorIter != m_keyValidatorMap.end() && validatorIter->second(value)) {
+                    passport->m_isFieldValid.set(fieldIter->second);
                 }
             }
 
@@ -250,11 +245,15 @@ private:
     // Must use factory to construct.
     Passport() {}
 
-    // If a bit is set, the corresponding Field has data
-    uint8_t m_isFieldSet = 0;
+    // Field exists if bit is set
+    std::bitset<8> m_isFieldSet = 0;
+
+    // Field is valid if bit is set
+    std::bitset<8> m_isFieldValid = 0;
 
 public:
-    bool hasFields(uint8_t required) { return (m_isFieldSet & required) == required; }
+    bool hasFields(const std::bitset<8>& required) { return (m_isFieldSet & required) == required; }
+    bool hasValidFields(const std::bitset<8>& required) { return (m_isFieldValid & required) == required; }
 };
 
 const std::unordered_map<std::string, int> Passport::m_keyFieldMap = {
@@ -306,40 +305,32 @@ int main(int argc, char** argv)
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    // Part 1
+    // Part 1 & 2
     auto p1Answer = 0;
+    auto p2Answer = 0;
     
+    // All fields except CID are required.
+    constexpr std::bitset<8> requiredFields(0xFF - (1 << Passport::COUNTRY_ID));
+
     for (auto input : passportData) {
-        auto passport = Passport::CreateFromInput(input, false);
-        auto requiredFields = Passport::ALL_FIELDS ^ Passport::COUNTRY_ID;
+        auto passport = Passport::CreateFromInput(input);
         if (passport->hasFields(requiredFields)) {
             p1Answer++;
+        }
+        if (passport->hasValidFields(requiredFields)) {
+            p2Answer++;
         }
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
 
-    // Part 2
-    auto p2Answer = 0;
-    for (auto input : passportData) {
-        auto passport = Passport::CreateFromInput(input, true);
-        auto requiredFields = Passport::ALL_FIELDS ^ Passport::COUNTRY_ID;
-        if (passport->hasFields(requiredFields)) {
-            p2Answer++;
-        }
-    }
-
-    auto t3 = std::chrono::high_resolution_clock::now();
-
     auto fileLoad = std::chrono::duration_cast<std::chrono::microseconds>(t1 - start).count();
-    auto p1duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    auto p2duration = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
-    auto totalTime = std::chrono::duration_cast<std::chrono::microseconds>(t3 - start).count();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    auto totalTime = std::chrono::duration_cast<std::chrono::microseconds>(t2 - start).count();
 
     std::cout
         << std::endl
         << "File Load: " << fileLoad << "us" << std::endl
-        << "Part1: " << p1Answer << " (" << p1duration << "us)" << std::endl
-        << "Part2: " << p2Answer << " (" << p2duration << "us)" << std::endl
+        << "Part1: " << p1Answer << ", Part2: " << p2Answer << " (" << duration << "us)" << std::endl
         << "Total Time: " << totalTime << "us" << std::endl;
 }
